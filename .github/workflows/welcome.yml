@@ -1,0 +1,28 @@
+# Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+name: Welcome New Contributors
+on:
+  pull_request_target:
+    types: [opened]
+  issues:
+    types: [opened]
+permissions:
+  issues: write
+  pull-requests: write
+# SECURITY: pull_request_target runs in BASE context. Never checkout PR head ref.
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    # SECURITY: pull_request_target — uses actions/first-interaction which only
+    # reads contributor history via API. No checkout of PR head code.
+    steps:
+      - uses: actions/first-interaction@a1db7729b356323c7988c20ed6f0d33fe31297be # v1.3.0
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          issue_message: |
+            Welcome to the Agent Governance Toolkit! Thanks for opening your first issue.
+            A maintainer will review this shortly. Check our [Contributing Guide](https://github.com/microsoft/agent-governance-toolkit/blob/main/CONTRIBUTING.md).
+            For security issues, use [private vulnerability reporting](https://github.com/microsoft/agent-governance-toolkit/security/advisories/new).
+          pr_message: |
+            Welcome to the Agent Governance Toolkit! Thanks for your first pull request.
+            Please ensure tests pass, code follows style (ruff check), and you have signed the [CLA](https://cla.opensource.microsoft.com/).
+            See our [Contributing Guide](https://github.com/microsoft/agent-governance-toolkit/blob/main/CONTRIBUTING.md).

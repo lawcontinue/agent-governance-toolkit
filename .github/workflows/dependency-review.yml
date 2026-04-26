@@ -1,0 +1,30 @@
+# Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+name: Dependency Review
+on:
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'notebooks/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: always
+          allow-licenses: >
+            MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC,
+            PSF-2.0, Python-2.0, 0BSD, Unlicense, CC0-1.0,
+            CC-BY-4.0, Zlib, BSL-1.0, MPL-2.0
