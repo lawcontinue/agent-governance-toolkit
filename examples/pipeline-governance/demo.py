@@ -25,12 +25,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
+
+_logger = logging.getLogger(__name__)
 
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -62,6 +65,7 @@ class GovernanceReceipt:
     timestamp: float = field(default_factory=time.time)
     session_id: Optional[str] = None
     step_index: int = 0
+    nonce: str = field(default_factory=lambda: uuid.uuid4().hex[:16])
     parent_receipt_hash: Optional[str] = None
     signature: Optional[str] = None
     signer_public_key: Optional[str] = None
@@ -69,11 +73,17 @@ class GovernanceReceipt:
     error: Optional[str] = None
 
     def canonical_payload(self) -> str:
-        """RFC 8785 JCS canonical JSON (signature fields excluded)."""
+        """RFC 8785 JCS canonical JSON (signature fields excluded).
+
+        Includes a per-receipt nonce to prevent replay attacks: even if two
+        receipts have identical action/principal/context, the nonce ensures
+        a different payload hash.
+        """
         data: Dict[str, Any] = {
             "action": self.action,
             "args_hash": self.args_hash,
             "cedar_decision": self.cedar_decision,
+            "nonce": self.nonce,
             "principal": self.principal,
             "receipt_id": self.receipt_id,
             "session_id": self.session_id,
@@ -113,14 +123,18 @@ def sign_receipt(receipt: GovernanceReceipt, private_key: Ed25519PrivateKey) -> 
 
 
 def verify_receipt(receipt: GovernanceReceipt) -> bool:
-    """Verify receipt signature offline."""
+    """Verify receipt signature offline.
+
+    Only catches InvalidSignature — other errors (malformed key, hex decode
+    failure) propagate so they can be diagnosed rather than silently returning False.
+    """
     if not receipt.signature or not receipt.signer_public_key:
         return False
     try:
         pub_key = Ed25519PublicKey.from_public_bytes(bytes.fromhex(receipt.signer_public_key))
         pub_key.verify(bytes.fromhex(receipt.signature), receipt.canonical_payload().encode())
         return True
-    except (InvalidSignature, Exception):
+    except InvalidSignature:
         return False
 
 
@@ -285,7 +299,19 @@ class PipelineGovernanceAdapter:
         args: Dict[str, Any],
         context: Dict[str, Any],
     ) -> GovernanceReceipt:
-        """Evaluate policy, create receipt, sign, hash-chain."""
+        """Evaluate Cedar policy for a pipeline step and produce a signed receipt.
+
+        Args:
+            action: The pipeline action (e.g. LoadShard, RunInference, CrossShardTransfer).
+            principal: The agent identity (e.g. 'Rank::"r0"').
+            args: Action arguments, hashed into the receipt for integrity.
+            context: Cedar evaluation context (model, memory_budget, etc.).
+
+        Returns:
+            A GovernanceReceipt with the policy decision. If allowed and a signing
+            key is configured, the receipt is Ed25519-signed and hash-chained to
+            the previous receipt in the session.
+        """
         args_hash = hashlib.sha256(json.dumps(args, sort_keys=True).encode()).hexdigest()
         decision = self._evaluator.evaluate(action, principal, context)
         cedar_decision = "allow" if decision else "deny"
