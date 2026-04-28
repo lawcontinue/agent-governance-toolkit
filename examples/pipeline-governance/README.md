@@ -137,6 +137,17 @@ Each receipt includes the hash of the previous receipt (`parent_receipt_hash`). 
 - [reasoning-attestation-governed](../reasoning-attestation-governed/) — SAE feature attestation with signed envelopes
 - [mcp-receipt-governed](../mcp-receipt-governed/) — MCP tool-call receipt signing
 
+## Limitations
+
+This example is designed for **learning and prototyping** purposes. Key limitations to be aware of:
+
+- **Simplified Cedar evaluator** — The inline `CedarPolicyEvaluator` covers only the subset of Cedar used in this demo. For production, use the [official Cedar engine](https://www.cedarpolicy.com/).
+- **Single-key signing** — All receipts are signed with one Ed25519 key. Production systems should use proper key management (HSM, KMS, or hardware-backed keys).
+- **No replay protection** — Governance receipts do not include nonces or short-lived validity windows. Add these for production replay-attack prevention.
+- **Not thread-safe** — `PipelineGovernanceAdapter` maintains in-memory state (`_last_receipt_hash`, `_step_index`). Wrap with locks or use per-request instances for concurrent use.
+- **Mock inference** — The pipeline steps are mocked. Integrate with real inference frameworks (MLX, vLLM, TGI) by replacing `mock_inference_step()`.
+
+
 ## License
 
-This example is licensed under the Apache License 2.0.
+This example is licensed under the MIT License.
