@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) lawcontinue. Licensed under the Apache-2.0 License.
+# Copyright (c) lawcontinue. Licensed under the MIT License.
 """
 Pipeline Governance — Demo
 
